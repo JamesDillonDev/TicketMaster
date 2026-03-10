@@ -7,7 +7,7 @@ import { useNavigate } from 'react-router-dom';
 
 const backendUrl = 'http://localhost:5000';
 
-export default function CreateTicket() {
+export default function CreateTicketPage({ user }) {
     const [title, setTitle] = useState('');
     const [description, setDescription] = useState('');
     const [message, setMessage] = useState('');
@@ -23,7 +23,11 @@ export default function CreateTicket() {
             return;
         }
         try {
-            await axios.post(`${backendUrl}/ticket`, { title, description });
+            await axios.post(
+                `${backendUrl}/ticket`,
+                { title, description, user_id: user.id },
+                { headers: { Authorization: `Bearer ${user.token}` } }
+            );
             setMessage('Ticket created');
             setTitle('');
             setDescription('');
@@ -66,4 +70,3 @@ export default function CreateTicket() {
         </Container>
     );
 }
-        

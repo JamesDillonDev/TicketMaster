@@ -27,21 +27,28 @@ def create_ticket():
     data = request.json
     title = data.get("title")
     description = data.get("description")
+    user_id = data.get("user_id")
 
     if not title:
         return jsonify({"error": "Title is required"}), 400
+    if not user_id:
+        return jsonify({"error": "user_id is required"}), 400
 
     conn = get_db_connection()
     cursor = conn.cursor()
-    cursor.execute(
-        "INSERT INTO tickets (title, description) VALUES (?, ?)",
-        (title, description)
-    )
-    conn.commit()
-    ticket_id = cursor.lastrowid
-    conn.close()
-
-    return jsonify({"message": "Ticket created", "ticket_id": ticket_id}), 201
+    try:
+        cursor.execute(
+            "INSERT INTO tickets (user_id, title, description) VALUES (?, ?, ?)",
+            (user_id, title, description)
+        )
+        conn.commit()
+        ticket_id = cursor.lastrowid
+        return jsonify({"message": "Ticket created", "ticket_id": ticket_id}), 201
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"error": str(e)}), 500
+    finally:
+        conn.close()
 
 #Update Ticket
 @ticket_api.route("/ticket/<int:ticket_id>", methods=["PUT"])

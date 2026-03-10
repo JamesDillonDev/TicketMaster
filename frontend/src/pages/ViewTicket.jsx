@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
+import { FaEdit, FaTrash } from 'react-icons/fa';
 import axios from 'axios';
 import { Container, Row, Col, Form, Button, Alert, ListGroup } from 'react-bootstrap';
 import { useParams, useNavigate } from 'react-router-dom';
 
-export default function ViewTicket() {
-    const backendUrl = 'http://localhost:5000';
+export default function ViewTicket({ user }) {
+	const backendUrl = 'http://localhost:5000';
 	const { id } = useParams();
 	const [title, setTitle] = useState('');
 	const [description, setDescription] = useState('');
@@ -64,7 +65,11 @@ export default function ViewTicket() {
 			return;
 		}
 		try {
-			await axios.post(`${backendUrl}/ticket/${id}/messages`, { content: newMsg });
+			await axios.post(
+				`${backendUrl}/ticket/${id}/messages`,
+				{ content: newMsg, user_id: user.id },
+				{ headers: { Authorization: `Bearer ${user.token}` } }
+			);
 			setMsgSuccess('Message posted');
 			setTimeout(() => setMsgSuccess(''), 2000);
 			setNewMsg('');
@@ -113,9 +118,78 @@ export default function ViewTicket() {
 					<ListGroup className="mb-3">
 						{messages.length === 0 && <ListGroup.Item>No messages yet.</ListGroup.Item>}
 						{messages.map(msg => (
-							<ListGroup.Item key={msg.id}>
-								<div>{msg.content}</div>
-								<small className="text-muted">{new Date(msg.created_at).toLocaleString()}</small>
+							<ListGroup.Item key={msg.id} className="d-flex justify-content-between align-items-start">
+								<div className="flex-grow-1">
+									{msg.editing ? (
+										<Form
+											onSubmit={async e => {
+												e.preventDefault();
+												try {
+													await axios.put(
+														`${backendUrl}/messages/${msg.id}`,
+														{ content: msg.editContent },
+														{ headers: { Authorization: `Bearer ${user.token}` } }
+													);
+													setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, content: msg.editContent, editing: false } : m));
+												} catch {
+													setMsgError('Failed to edit message');
+												}
+											}}
+										>
+											<Form.Group className="mb-2">
+												<Form.Control
+													as="textarea"
+													value={msg.editContent}
+													onChange={e => setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, editContent: e.target.value } : m))}
+												/>
+											</Form.Group>
+											<Button type="submit" size="sm" variant="success">Save</Button>{' '}
+											<Button size="sm" variant="secondary" onClick={() => setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, editing: false } : m))}>Cancel</Button>
+										</Form>
+									) : (
+										<>
+											<div>{msg.content}</div>
+											<div>
+												<small className="text-muted">
+													Sent by {msg.first_name} {msg.last_name} ({msg.email})<br />
+													{new Date(msg.created_at).toLocaleString()}
+												</small>
+											</div>
+										</>
+									)}
+								</div>
+								{user.email === msg.email && !msg.editing && (
+									<div className="ms-auto d-flex align-items-center">
+										<Button
+											size="sm"
+											variant="link"
+											className="p-1 me-2"
+											title="Edit"
+											onClick={() => setMessages(prev => prev.map(m => m.id === msg.id ? { ...m, editing: true, editContent: m.content } : m))}
+										>
+											<FaEdit/>
+										</Button>
+										<Button
+											size="sm"
+											variant="link"
+											className="p-1"
+											title="Delete"
+											onClick={async () => {
+												try {
+													await axios.delete(
+														`${backendUrl}/messages/${msg.id}`,
+														{ headers: { Authorization: `Bearer ${user.token}` } }
+													);
+													setMessages(prev => prev.filter(m => m.id !== msg.id));
+												} catch {
+													setMsgError('Failed to delete message');
+												}
+											}}
+										>
+											<FaTrash />
+										</Button>
+									</div>
+								)}
 							</ListGroup.Item>
 						))}
 					</ListGroup>
